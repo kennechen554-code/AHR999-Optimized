@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kenne Index · 自动定投系统 Auto DCA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      /* iOS 风格颜色变量 */
+      --system-bg: #000000;
+      --system-surface: #1c1c1e;
+      --system-surface-2: #2c2c2e;
+      --system-blue: #0a84ff;
+      --system-green: #30d158;
+      --system-red: #ff453a;
+      --system-orange: #ff9f0a;
+      --system-yellow: #ffd60a;
+      --system-gray: #8e8e93;
+      --system-gray-2: #636366;
+      --system-gray-3: #48484a;
+      --system-gray-4: #3a3a3c;
+      --system-gray-5: #2c2c2e;
+      --system-gray-6: #1c1c1e;
+
+      --text-primary: #ffffff;
+      --text-secondary: rgba(235, 235, 245, 0.6);
+      --text-tertiary: rgba(235, 235, 245, 0.3);
+
+      --accent: var(--system-blue);
+      --border: rgba(255, 255, 255, 0.1);
+      --border-thick: rgba(255, 255, 255, 0.15);
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+      --radius-full: 999px;
+
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+
+      --glass: saturate(180%) blur(20px);
+      --glass-bg: rgba(28, 28, 30, 0.7);
+
+      --font-mono: 'SF Mono', 'IBM Plex Mono', ui-monospace, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Noto Sans SC", sans-serif;
+    }
+
+    /* Target calendar for rounding */
+    input[type="month"] {
+      border-radius: 12px !important;
+      background-color: var(--system-surface-2) !important;
+      border: 1px solid var(--border) !important;
+      padding-right: 8px !important;
+    }
+
+    input[type="month"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.5);
+      /* Unified with text-secondary */
+      cursor: pointer;
+      width: 14px;
+      height: 14px;
+      margin-left: 6px;
+      opacity: 0.8;
+    }
+
+    input[type="month"] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px !important;
+      background-color: var(--system-surface-2) !important;
+      border: 0.5px solid var(--border) !important;
+      padding: 4px 8px !important;
+      color: var(--text-secondary) !important;
+      font-size: 12px !important;
+      font-family: var(--font-sans);
+      min-width: 130px;
+      height: 28px;
+      color-scheme: dark;
+      margin-top: 1px;
+    }
+
+    /* Global Rounding Fix */
+    button,
+    input,
+    select,
+    textarea {
+      border-radius: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--system-bg);
+      background-image:
+        radial-gradient(circle at 20% 20%, rgba(10, 132, 255, 0.15), transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(48, 209, 88, 0.12), transparent 40%);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.4;
+      min-height: 100vh;
+    }
+
+    /* ─── HEADER */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 64px;
+      backdrop-filter: var(--glass);
+      -webkit-backdrop-filter: var(--glass);
+      background: var(--glass-bg);
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .logo-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .logo span {
+      color: var(--system-blue);
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      margin-top: -2px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* ─── NAV TABS (Segmented Control style) */
+    nav {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      gap: 4px;
+      background: var(--system-gray-6);
+      padding: 4px;
+      margin: 16px 20px;
+      border-radius: 12px;
+      border: 0.5px solid var(--border);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 8px 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      text-align: center;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      background: var(--system-gray-4);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ─── MAIN LAYOUT */
+    main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 20px 40px;
+    }
+
+    .tab-panel {
+      display: none;
+      width: 100%;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ─── SECTION TITLE */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      margin-top: 24px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ─── CARDS (iOS Style) */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--system-surface);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      border: 0.5px solid var(--border);
+      transition: transform 0.2s;
+      box-shadow: var(--shadow-md);
+    }
+
+    .card:active {
+      transform: scale(0.98);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .coin-badge {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      background: var(--system-gray-5);
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+
+    .zone-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 12px;
+    }
+
+    .zone-badge.extreme {
+      background: rgba(255, 69, 58, 0.15);
+      color: var(--system-red);
+    }
+
+    .zone-badge.dca {
+      background: rgba(10, 132, 255, 0.15);
+      color: var(--system-blue);
+    }
+
+    .zone-badge.hold {
+      background: rgba(142, 142, 147, 0.15);
+      color: var(--system-gray);
+    }
+
+    .kenne-box {
+      margin-bottom: 16px;
+    }
+
+    .kenne-label {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .kenne-value {
+      font-family: var(--font-mono);
+      font-size: 36px;
+      font-weight: 300;
+      line-height: 1;
+    }
+
+    .kenne-value.extreme {
+      color: var(--system-red);
+    }
+
+    .kenne-value.dca {
+      color: var(--system-blue);
+    }
+
+    .price-line {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+
+    .card-stats {
+      display: flex;
+      gap: 24px;
+      border-top: 0.5px solid var(--border);
+      padding-top: 16px;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .mult-badge {
+      margin-top: 16px;
+      padding: 10px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .mult-badge.x2 {
+      background: var(--system-red);
+      color: white;
+    }
+
+    .mult-badge.x1 {
+      background: var(--system-blue);
+      color: white;
+    }
+
+    .mult-badge.x075 {
+      background: var(--system-yellow);
+      color: black;
+    }
+
+    .mult-badge.x04 {
+      background: var(--system-orange);
+      color: white;
+    }
+
+    .mult-badge.x0 {
+      background: var(--system-gray-4);
+      color: var(--text-tertiary);
+    }
+
+    /* ─── TABLES & PANELS */
+    .ios-panel {
+      background: var(--system-surface);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 0.5px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    .panel-header {
+      padding: 14px 20px;
+      background: var(--system-surface-2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .ios-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .ios-table th {
+      text-align: left;
+      padding: 12px 20px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .ios-table td {
+      padding: 14px 20px;
+      font-size: 13px;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .ios-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .ios-table .symbol {
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    /* ─── FORMS */
+    .config-group {
+      margin-bottom: 24px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      padding-left: 4px;
+    }
+
+    input,
+    select {
+      background: var(--system-surface-2);
+      border: 0.5px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      color: var(--text-primary);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--system-blue);
+    }
+
+    /* ─── BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--system-blue);
+      color: white;
+    }
+
+    .btn-primary:active {
+      background: #0071e3;
+      transform: scale(0.97);
+    }
+
+    .btn-secondary {
+      background: var(--system-gray-4);
+      color: var(--text-primary);
+    }
+
+    .btn-danger {
+      background: var(--system-red);
+      color: white;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--system-blue);
+    }
+
+    /* ─── ACTIONS */
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .action-item {
+      background: var(--system-surface);
+      border-radius: 18px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border: 0.5px solid var(--border);
+    }
+
+    .action-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .action-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      min-height: 3.4em;
+    }
+
+    /* ─── LOG BOX */
+    .log-box {
+      background: #000;
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #30d158;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 0.5px solid var(--border);
+      display: none;
+    }
+
+    .log-box.visible {
+      display: block;
+    }
+
+    /* ─── STATUS */
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--system-gray);
+      transition: 0.3s;
+    }
+
+    .status-dot.online {
+      background: var(--system-green);
+      box-shadow: 0 0 10px var(--system-green);
+    }
+
+    .status-text {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 600px) {
+      nav {
+        margin: 12px 10px;
+      }
+
+      main {
+        padding: 0 10px 40px;
+      }
+
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type=number] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="logo-wrap">
+      <div class="logo">KENNE<span>/</span>INDEX</div>
+      <div class="logo-sub">自动定投 · SMART AUTO DCA</div>
+    </div>
+    <div class="header-right">
+      <div id="statusDot" class="status-dot"></div>
+      <span id="statusText" class="status-text">OFFLINE</span>
+    </div>
+  </header>
+
+  <nav id="topNav">
+    <button class="tab-btn active" onclick="switchTab('dashboard', this)">主面板 Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('config', this)">配置设定 Config</button>
+    <button class="tab-btn" onclick="switchTab('execute', this)">执行操作 Execute</button>
+    <button class="tab-btn" onclick="switchTab('history', this)">历史记录 History</button>
+    <button class="tab-btn" onclick="switchTab('backtest', this)">回测分析 Backtest</button>
+  </nav>
+
+  <main>
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard" class="tab-panel active">
+      <div class="section-header">
+        <div class="section-title">市场信号 · Market Signals</div>
+        <button class="btn btn-secondary" onclick="loadSignals()" id="refreshBtn"
+          style="padding: 6px 12px; font-size: 11px;">刷新 REFRESH</button>
+      </div>
+
+      <div id="cards" class="cards">
+        <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: var(--text-tertiary);">
+          Initialize... 正在初始化
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">MVRV-Z</div>
+      </div>
+      <div id="mvrv-cards" class="cards">
+        <div style="grid-column: 1/-1; padding: 40px; text-align: center; color: var(--text-tertiary);">
+          Loading MVRV Data... 正在加载
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">本次分配 · Current Allocation</div>
+      </div>
+      <div class="ios-panel" id="allocPanel">
+        <div style="padding: 24px; text-align: center; color: var(--text-tertiary);">No data · 暂无数据</div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">模型参数 · Model Parameters</div>
+      </div>
+      <div class="ios-panel">
+        <div class="table-wrap" style="overflow-x: auto;">
+          <table class="ios-table">
+            <thead>
+              <tr>
+                <th>代币 Symbol</th>
+                <th>斜率 Slope</th>
+                <th>R²</th>
+                <th>年限 Years</th>
+                <th>更新 Updated</th>
+              </tr>
+            </thead>
+            <tbody id="modelRows">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-tertiary);">加载中 Loading...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIG -->
+    <div id="tab-config" class="tab-panel">
+      <div class="section-header">
+        <div class="section-title">接口配置 · API Settings</div>
+      </div>
+      <div class="ios-panel" style="padding: 20px;">
+        <div class="form-row">
+          <div class="form-item">
+            <label>交易所 Exchange</label>
+            <select id="cfg_exchange" onchange="onExchangeChange()"></select>
+          </div>
+          <div class="form-item" id="passphrase_group">
+            <label>口令 Passphrase</label>
+            <input id="cfg_api_passphrase" type="password" placeholder="Passphrase">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-item">
+            <label>API Key</label>
+            <input id="cfg_api_key" type="password" placeholder="API Key">
+          </div>
+          <div class="form-item">
+            <label>API Secret</label>
+            <input id="cfg_api_secret" type="password" placeholder="API Secret">
+          </div>
+        </div>
+        <div id="exchangeNote" style="font-size: 11px; color: var(--system-gray); margin-top: 8px;"></div>
+        <div style="margin-top: 16px; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="cfg_simulated" style="width: auto;">
+          <label for="cfg_simulated" style="color: var(--text-primary); cursor: pointer;">Simulated Mode (Dry Run) /
+            模拟盘模式</label>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">策略配置 · Strategy</div>
+      </div>
+      <div class="ios-panel" style="padding: 20px;">
+        <div class="form-row">
+          <div class="form-item">
+            <label>预算模式 Budget Mode</label>
+            <select id="cfg_budget_mode_sel" onchange="updateModeFromSel()">
+              <option value="MONTHLY">月度总预算 Monthly Budget</option>
+              <option value="FIXED">单次固定金额 Fixed Per-Run</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label id="budgetLabel">金额 Amount (USDT)</label>
+            <input id="cfg_budget_amount" type="number" placeholder="700">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-item">
+            <label>执行频率 Interval</label>
+            <select id="cfg_run_interval_days">
+              <option value="1">每天 Daily</option>
+              <option value="7" selected>每周 Weekly</option>
+              <option value="14">两周 Bi-weekly</option>
+              <option value="30">每月 Monthly</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>预估单次金额 Per-Run Estimate</label>
+            <input id="perRunEstimate" readonly style="color: var(--system-blue); cursor: default;">
+          </div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">邮件通知 · Notification</div>
+      </div>
+      <div class="ios-panel" style="padding: 20px;">
+        <div class="form-row">
+          <div class="form-item">
+            <label>SMTP Host</label>
+            <select id="cfg_smtp_host" onchange="onSmtpChange()">
+              <option value="smtp.gmail.com">Gmail</option>
+              <option value="smtp.qq.com">QQ Mail</option>
+              <option value="smtp.163.com">163 Mail</option>
+              <option value="smtp-mail.outlook.com">Outlook</option>
+              <option value="custom">Custom...</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>Port</label>
+            <input id="cfg_smtp_port" type="number" placeholder="587">
+          </div>
+        </div>
+        <div class="form-row" id="customHostGroup" style="display:none">
+          <div class="form-item"><label>Custom Host</label><input id="cfg_smtp_host_custom" type="text"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-item"><label>Sender User</label><input id="cfg_smtp_user" type="email"></div>
+          <div class="form-item"><label>Password / App Key</label><input id="cfg_smtp_password" type="password"></div>
+          <div class="form-item"><label>Receiver To</label><input id="cfg_email_to" type="email"></div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-top: 24px;">
+        <button class="btn btn-primary" onclick="saveConfig()">保存设定 SAVE SETTINGS</button>
+        <button class="btn btn-secondary" onclick="loadConfig()">重新加载 RELOAD</button>
+      </div>
+      <div id="configLog" class="log-box"></div>
+    </div>
+
+    <!-- EXECUTE -->
+    <div id="tab-execute" class="tab-panel">
+      <div class="section-header">
+        <div class="section-title">手动操作 · Manual Actions</div>
+      </div>
+      <div class="action-grid">
+        <div class="action-item">
+          <div class="action-title">拉取行情 Update Market Data</div>
+          <div class="action-desc">拉取最新行情数据。<br>Fetch latest candles and append to local storage.</div>
+          <button class="btn btn-secondary" onclick="updateData()">更新行情 FETCH DATA</button>
+        </div>
+        <div class="action-item">
+          <div class="action-title">查询资产 Check Balance</div>
+          <div class="action-desc">查询账户余额及持仓。<br>Query current USDT and holdings balances.</div>
+          <button class="btn btn-secondary" onclick="checkBalance()">查询资产 FETCH BALANCE</button>
+        </div>
+        <div class="action-item">
+          <div class="action-title">模拟执行 Dry Run</div>
+          <div class="action-desc">模拟执行，不产生交易。<br>Simulation mode. No real trades will be made.</div>
+          <button class="btn btn-primary" onclick="runDca(true)">模拟执行 DRY RUN</button>
+        </div>
+        <div class="action-item">
+          <div class="action-title">实盘执行 Live Execute</div>
+          <div class="action-desc">实盘执行，请谨慎操作。<br>Live execution with real capital. Use caution.</div>
+          <button class="btn btn-danger" onclick="runDca(false)" id="liveDcaBtn">实盘执行 LIVE EXECUTE</button>
+        </div>
+        <div class="action-item" style="grid-column: 1/-1;">
+          <div class="action-title">发送报告 Send Email Signal</div>
+          <div class="action-desc">发送指数信号报告邮件。<br>Calculate latest signals and notify via email.</div>
+          <button class="btn btn-primary" onclick="sendNotify()" style="background: var(--system-green);">发送报告 SEND
+            EMAIL</button>
+        </div>
+      </div>
+      <div id="balanceGrid" class="ios-panel"
+        style="margin-top: 16px; padding: 16px; display: none; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;">
+      </div>
+      <div id="execLog" class="log-box"></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="tab-history" class="tab-panel">
+      <div class="section-header">
+        <div class="section-title">历史记录 · Trading History</div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <select id="histStatusFilter" onchange="loadHistory()"
+            style="padding: 6px 10px; font-size: 13px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--system-surface-2); color: var(--text-primary); cursor: pointer; outline: none;">
+            <option value="all">全部 All</option>
+            <option value="filled">实盘 Live (Filled)</option>
+            <option value="dry_run">模拟盘 Simulation</option>
+          </select>
+          <input id="histMonth" type="month" oninput="loadHistory()">
+          <button class="btn btn-secondary" onclick="clearMonth()" style="padding: 6px 10px; font-size: 11px;">全部
+            ALL</button>
+          <button class="btn btn-secondary" onclick="loadHistory()" style="padding: 6px 10px; font-size: 11px;">刷新
+            REFRESH</button>
+          <button class="btn btn-danger" onclick="initHistory()"
+            style="padding: 6px 12px; font-size: 11px; background: var(--system-red); color: white; border: none;">初始化
+            RESET</button>
+        </div>
+      </div>
+
+      <div id="portfolioPanel" class="ios-panel" style="padding: 20px; margin-bottom: 20px; display: none;">
+        <div
+          style="display: flex; gap: 16px; margin-bottom: 16px; border-bottom: 0.5px solid var(--border); padding-bottom: 12px;">
+          <div id="tab-port-live"
+            style="font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-primary);"
+            onclick="switchPortMode('live')">实盘持仓 Live Position</div>
+          <div id="tab-port-dry"
+            style="font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text-tertiary);"
+            onclick="switchPortMode('dry')">模拟盘持仓 Simulated Position</div>
+        </div>
+        <div id="port-live-content"
+          style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;"></div>
+        <div id="port-dry-content"
+          style="display: none; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;"></div>
+      </div>
+
+      <div id="historySummary" class="ios-panel" style="padding: 16px; margin-bottom: 16px; display: none; gap: 40px;">
+        <div class="stat">
+          <div class="stat-label">总记录数 Records</div>
+          <div class="stat-value" id="histCount">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">总投资 USDT Invested</div>
+          <div class="stat-value" id="histTotal">$0</div>
+        </div>
+      </div>
+
+      <div class="ios-panel">
+        <div class="table-wrap" style="overflow-x: auto;">
+          <table class="ios-table">
+            <thead>
+              <tr>
+                <th>时间 Time</th>
+                <th>代币 Symbol</th>
+                <th>交易所 Exchange</th>
+                <th>金额 USDT</th>
+                <th>指数 Index</th>
+                <th>倍数 Mult</th>
+                <th>状态 Status</th>
+              </tr>
+            </thead>
+            <tbody id="histBody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-tertiary);">暂无记录 · No records found</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- BACKTEST -->
+    <div id="tab-backtest" class="tab-panel">
+      <iframe src="/backtest"
+        style="width: 100%; height: calc(100vh - 160px); border: none; border-radius: 12px; background: var(--system-bg);"></iframe>
+    </div>
+  </main>
+
+  <script>
+    // ─── STATE
+    let currentSignals = [];
+    let exchanges = {};
+    let budgetMode = 'MONTHLY';
+
+    // ─── TABS
+    function switchTab(name, btn) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      if (btn) btn.classList.add('active');
+      if (name === 'history') loadHistory();
+    }
+
+    // ─── INIT
+    async function init() {
+      await Promise.all([loadExchanges(), loadConfig()]);
+      loadSignals();
+    }
+
+    // ─── EXCHANGES
+    async function loadExchanges() {
+      try {
+        const res = await fetch('/api/exchanges');
+        exchanges = await res.json();
+        const sel = document.getElementById('cfg_exchange');
+        sel.innerHTML = Object.entries(exchanges)
+          .map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
+      } catch (e) {
+        console.error('Failed to load exchanges', e);
+      }
+    }
+
+    const EXCHANGE_NOTES = {
+      okx: 'OKX: Need API Key + Secret + Passphrase. Trade permissions only.',
+      binance: 'Binance: Need API Key + Secret. Spot trading enabled.',
+      bybit: 'Bybit: Need API Key + Secret. Spot permissions.',
+      bitget: 'Bitget: API Key + Secret + Passphrase required.',
+      gateio: 'Gate.io: API Key + Secret required.',
+      kucoin: 'KuCoin: API Key + Secret + Passphrase (Trading Password).',
+      htx: 'HTX: API Key + Secret required.',
+      mexc: 'MEXC: API Key + Secret required.',
+    };
+    const PASSPHRASE_EXCHANGES = ['okx', 'bitget', 'kucoin'];
+
+    function onExchangeChange() {
+      const ex = document.getElementById('cfg_exchange').value;
+      document.getElementById('exchangeNote').textContent = EXCHANGE_NOTES[ex] || '';
+      const showPp = PASSPHRASE_EXCHANGES.includes(ex);
+      document.getElementById('passphrase_group').style.display = showPp ? '' : 'none';
+    }
+
+    // ─── CONFIG
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config');
+        const cfg = await res.json();
+
+        if (cfg.exchange) document.getElementById('cfg_exchange').value = cfg.exchange;
+        document.getElementById('cfg_api_key').value = cfg.api_key || '';
+        document.getElementById('cfg_api_secret').value = cfg.api_secret || '';
+        document.getElementById('cfg_api_passphrase').value = cfg.api_passphrase || '';
+        document.getElementById('cfg_simulated').checked = cfg.simulated !== false;
+        document.getElementById('cfg_budget_amount').value = cfg.budget_amount || 700;
+        document.getElementById('cfg_run_interval_days').value = cfg.run_interval_days || 7;
+        document.getElementById('cfg_smtp_user').value = cfg.smtp_user || '';
+        document.getElementById('cfg_smtp_password').value = cfg.smtp_password || '';
+        document.getElementById('cfg_email_to').value = cfg.email_to || '';
+        document.getElementById('cfg_smtp_port').value = cfg.smtp_port || 587;
+        document.getElementById('cfg_budget_mode_sel').value = cfg.budget_mode || 'MONTHLY';
+
+        const host = cfg.smtp_host || 'smtp.gmail.com';
+        const hostSel = document.getElementById('cfg_smtp_host');
+        const knownHosts = Array.from(hostSel.options).map(o => o.value);
+        if (knownHosts.includes(host)) {
+          hostSel.value = host;
+        } else {
+          hostSel.value = 'custom';
+          document.getElementById('customHostGroup').style.display = 'block';
+          document.getElementById('cfg_smtp_host_custom').value = host;
+        }
+
+        updateModeFromSel();
+        onExchangeChange();
+      } catch (e) { console.error('Load config failed', e); }
+    }
+
+    function updateModeFromSel() {
+      budgetMode = document.getElementById('cfg_budget_mode_sel').value;
+      const label = document.getElementById('budgetLabel');
+      label.textContent = budgetMode === 'MONTHLY'
+        ? 'Monthly Budget / 月预算 (USDT)'
+        : 'Fixed Amount / 单次金额 (USDT)';
+      updatePerRunEstimate();
+    }
+
+    async function saveConfig() {
+      const host = document.getElementById('cfg_smtp_host').value === 'custom'
+        ? document.getElementById('cfg_smtp_host_custom').value
+        : document.getElementById('cfg_smtp_host').value;
+
+      const cfg = {
+        exchange: document.getElementById('cfg_exchange').value,
+        api_key: document.getElementById('cfg_api_key').value,
+        api_secret: document.getElementById('cfg_api_secret').value,
+        api_passphrase: document.getElementById('cfg_api_passphrase').value,
+        simulated: document.getElementById('cfg_simulated').checked,
+        budget_mode: budgetMode,
+        budget_amount: parseFloat(document.getElementById('cfg_budget_amount').value) || 700,
+        run_interval_days: parseInt(document.getElementById('cfg_run_interval_days').value) || 7,
+        smtp_host: host,
+        smtp_port: parseInt(document.getElementById('cfg_smtp_port').value) || 587,
+        smtp_user: document.getElementById('cfg_smtp_user').value,
+        smtp_password: document.getElementById('cfg_smtp_password').value,
+        email_to: document.getElementById('cfg_email_to').value,
+      };
+
+      initLog('configLog');
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cfg)
+        });
+        const data = await res.json();
+        appendLog('configLog', data.ok ? `✓ ${data.msg}` : `✗ ${data.msg}`, data.ok);
+      } catch (e) {
+        appendLog('configLog', `✗ Error: ${e.message}`, false);
+      }
+    }
+
+    function updatePerRunEstimate() {
+      const amount = parseFloat(document.getElementById('cfg_budget_amount').value) || 700;
+      const interval = parseInt(document.getElementById('cfg_run_interval_days').value) || 7;
+      const est = budgetMode === 'FIXED' ? amount : (amount / (30 / interval));
+      document.getElementById('perRunEstimate').value = `~$${est.toFixed(2)} / run`;
+    }
+    document.getElementById('cfg_budget_amount').addEventListener('input', updatePerRunEstimate);
+    document.getElementById('cfg_run_interval_days').addEventListener('change', updatePerRunEstimate);
+
+    function onSmtpChange() {
+      const v = document.getElementById('cfg_smtp_host').value;
+      document.getElementById('customHostGroup').style.display = v === 'custom' ? 'block' : 'none';
+      const ports = { 'smtp.gmail.com': 587, 'smtp.qq.com': 465, 'smtp.163.com': 465, 'smtp-mail.outlook.com': 587 };
+      if (ports[v]) document.getElementById('cfg_smtp_port').value = ports[v];
+    }
+
+    // ─── SIGNALS
+    async function loadSignals() {
+      const btn = document.getElementById('refreshBtn');
+      btn.disabled = true; btn.textContent = 'LOADING...';
+      try {
+        const res = await fetch('/api/signals');
+        currentSignals = await res.json();
+        renderCards(currentSignals);
+        renderAllocation(currentSignals);
+        renderModelParams(currentSignals);
+        loadMVRV();
+        document.getElementById('statusDot').className = 'status-dot online';
+        document.getElementById('statusText').textContent = 'LIVE';
+      } catch (e) {
+        document.getElementById('statusText').textContent = 'ERROR';
+      } finally {
+        btn.disabled = false; btn.textContent = 'REFRESH';
+      }
+    }
+
+    async function loadMVRV() {
+      const el = document.getElementById('mvrv-cards');
+      try {
+        const res = await fetch('/api/mvrv');
+        const data = await res.json();
+        if (!data.ok) {
+          el.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--system-red)">Error: ${data.msg}</div>`;
+          return;
+        }
+
+        el.innerHTML = data.data.map(s => {
+          const mz = s.mvrv_z;
+          let color = mz > 0.5 ? 'var(--system-red)' : (mz < -0.2 ? 'var(--system-green)' : 'var(--text-secondary)');
+          let text = mz > 0.5 ? '危险 DANGER' : (mz < -0.2 ? '低估 UNDERVALUED' : '正常 NORMAL');
+          return `
+            <div class="card">
+              <div class="card-header">
+                <div class="coin-badge">${s.symbol} <span style="font-size:10px; opacity:0.6; margin-left:4px">#${s.rank}</span></div>
+                <div class="zone-badge" style="background:var(--system-surface-2);color:${color};border:0.5px solid ${color}">${text}</div>
+              </div>
+              <div style="margin:20px 0;text-align:center">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">MVRV-Z Score</div>
+                <div style="font-size:32px;font-weight:700;font-family:var(--font-mono);color:${color};letter-spacing:-0.5px">${mz.toFixed(3)}</div>
+              </div>
+              <div class="card-stats" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-bottom: 0.5px solid var(--border); padding-bottom: 15px; margin-bottom: 15px;">
+                <div class="stat" style="text-align: left;">
+                  <div style="font-size: 13px; font-weight: 500;">流通市值</div>
+                  <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">Circ Market Cap</div>
+                  <div style="font-size: 15px; font-weight: 600; font-family: var(--font-mono);">$${(s.market_cap / 1e9).toFixed(1)}B</div>
+                </div>
+                <div class="stat" style="text-align: left;">
+                  <div style="font-size: 13px; font-weight: 500;">已实现市值</div>
+                  <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">Realized Cap</div>
+                  <div style="font-size: 15px; font-weight: 600; font-family: var(--font-mono);">$${(s.realized_cap / 1e9).toFixed(1)}B</div>
+                </div>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px;">
+                <div class="stat" style="text-align: left;">
+                  <div style="font-size: 12px; color: var(--text-secondary);">24h 成交量</div>
+                  <div style="font-size: 10px; color: var(--text-tertiary); margin-bottom: 2px;">24h Volume</div>
+                  <div style="font-size: 13px; font-weight: 500; font-family: var(--font-mono);">$${(s.vol_24h / 1e9).toFixed(2)}B</div>
+                </div>
+                <div class="stat" style="text-align: left;">
+                  <div style="font-size: 12px; color: var(--text-secondary);">流通供应量</div>
+                  <div style="font-size: 10px; color: var(--text-tertiary); margin-bottom: 2px;">Circ Supply</div>
+                  <div style="font-size: 13px; font-weight: 500; font-family: var(--font-mono);">${(s.supply / 1e6).toFixed(1)}M</div>
+                </div>
+              </div>
+
+              <div style="padding-top: 12px; border-top: 0.5px solid var(--border); display: flex; justify-content: space-between; font-size: 11px; align-items: center;">
+                 <div style="color: var(--text-secondary);">
+                    费率 Funding: 
+                    <span style="font-family: var(--font-mono); color: var(--accent); margin-left: 4px;">
+                      ${s.funding && (s.funding.fundingRate !== undefined) ? (s.funding.fundingRate * 100).toFixed(4) : '0.0000'}%
+                    </span>
+                 </div>
+                 <div style="color: var(--text-tertiary); font-size: 10px;">
+                   <span style="color: var(--system-red)">${s.depth?.ask1_price || '-'}</span> / 
+                   <span style="color: var(--system-green)">${s.depth?.bid1_price || '-'}</span>
+                 </div>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (e) {
+        el.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--system-red)">API failed</div>`;
+      }
+    }
+
+    function zoneClass(zone) {
+      if (zone === '极低估') return 'extreme';
+      if (zone === '定投区') return 'dca';
+      return 'hold';
+    }
+
+    function multClass(mult) {
+      if (mult >= 2) return 'x2';
+      if (mult >= 1) return 'x1';
+      if (mult >= 0.75) return 'x075';
+      if (mult >= 0.4) return 'x04';
+      return 'x0';
+    }
+
+    function multLabel(mult) {
+      if (mult >= 2) return '2.0× HEAVY BUY';
+      if (mult >= 1) return '1.0× REGGIE DCA';
+      if (mult >= 0.75) return '0.75× CAUTIOUS';
+      if (mult >= 0.4) return '0.4× LIGHT';
+      return '0.0× HOLD';
+    }
+
+    function renderCards(signals) {
+      const el = document.getElementById('cards');
+      if (!signals.length) { el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-tertiary)">No data available</div>'; return; }
+      el.innerHTML = signals.map(s => {
+        if (s.error) return `<div class="card"><div class="coin-badge">${s.symbol}</div><div style="padding:20px;color:var(--system-red)">${s.error}</div></div>`;
+        const zc = zoneClass(s.zone);
+        return `
+      <div class="card">
+        <div class="card-header">
+          <div class="coin-badge">${s.symbol}</div>
+          <div class="zone-badge ${zc}">${s.zone}</div>
+        </div>
+        <div class="kenne-box" style="margin: 15px 0;">
+          <div class="kenne-label" style="font-size: 11px; text-transform: uppercase;">Kenne Index</div>
+          <div class="kenne-value ${zc}" style="font-size: 32px;">${s.kenne_index.toFixed(4)}</div>
+        </div>
+        <div class="price-line" style="border-bottom: 0.5px solid var(--border); padding-bottom: 12px; margin-bottom: 15px;">
+           <span style="font-weight: 700;">$${s.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+           <span style="font-size: 11px; color: var(--text-tertiary); margin-left: 8px;">${s.date}</span>
+        </div>
+        
+        <div class="card-stats" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px;">
+          <div class="stat" style="text-align: left;">
+            <div style="font-size: 13px; font-weight: 500;">7日涨跌</div>
+            <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">7D Change</div>
+            <div style="font-size: 15px; font-weight: 600; font-family: var(--font-mono); color:${s.ret_7d >= 0 ? 'var(--system-green)' : 'var(--system-red)'}">
+              ${s.ret_7d >= 0 ? '+' : ''}${s.ret_7d.toFixed(2)}%
+            </div>
+          </div>
+          <div class="stat" style="text-align: left;">
+            <div style="font-size: 13px; font-weight: 500;">百分比排名</div>
+            <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">Percent Rank</div>
+            <div style="font-size: 15px; font-weight: 600; font-family: var(--font-mono);">${s.pct_rank}%</div>
+          </div>
+        </div>
+
+        <div class="card-stats" style="display: grid; grid-template-columns: 1fr; margin-bottom: 15px;">
+          <div class="stat" style="text-align: left;">
+            <div style="font-size: 13px; font-weight: 500;">趋势动量</div>
+            <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">Trend Momentum</div>
+            <div style="font-size: 14px; font-weight: 500;">${s.momentum}</div>
+          </div>
+        </div>
+        
+        <div class="mult-badge ${multClass(s.final_mult)}" style="margin-top: 5px;">${multLabel(s.final_mult)}</div>
+      </div>`;
+      }).join('');
+    }
+
+    function renderAllocation(signals) {
+      const el = document.getElementById('allocPanel');
+      const active = signals.filter(s => !s.error && s.final_mult > 0);
+      if (!active.length) {
+        el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-tertiary)">No investment signals today. No tokens meet the criteria.</div>';
+        return;
+      }
+
+      const amount = parseFloat(document.getElementById('cfg_budget_amount').value) || 0;
+      const interval = parseInt(document.getElementById('cfg_run_interval_days').value) || 7;
+      const perRun = budgetMode === 'FIXED' ? amount : (amount / (30 / interval));
+
+      const MAX_W = { BTC: 0.60, ETH: 0.50, SOL: 0.50 };
+      let norm = Object.fromEntries(active.map(s => [s.symbol, s.final_mult]));
+      for (let i = 0; i < 3; i++) {
+        const t = Object.values(norm).reduce((a, b) => a + b, 0);
+        norm = Object.fromEntries(Object.entries(norm).map(([k, v]) => [k, v / t]));
+        norm = Object.fromEntries(Object.entries(norm).map(([k, v]) => [k, Math.min(v, MAX_W[k] || 1)]));
+      }
+      const total = Object.values(norm).reduce((a, b) => a + b, 0);
+      const allocs = active.map(s => ({
+        ...s, weight: norm[s.symbol] / total,
+        usdt: Math.round(norm[s.symbol] / total * perRun * 100) / 100
+      }));
+
+      el.innerHTML = `
+        <div class="table-wrap">
+          <table class="ios-table">
+            <thead><tr><th>Symbol</th><th>Weight</th><th>Amount</th><th>Index</th><th>Status</th></tr></thead>
+            <tbody>
+              ${allocs.map(a => `
+              <tr>
+                <td class="symbol">${a.symbol}</td>
+                <td style="width:140px">
+                  <div style="height:4px;background:var(--system-gray-4);border-radius:2px">
+                    <div style="width:${(a.weight * 100).toFixed(0)}%;height:100%;background:var(--system-blue);border-radius:2px"></div>
+                  </div>
+                  <div style="font-size:10px;color:var(--text-tertiary);margin-top:4px">${(a.weight * 100).toFixed(1)}%</div>
+                </td>
+                <td style="color:var(--system-blue);font-weight:600">$${a.usdt.toFixed(2)}</td>
+                <td style="font-family:var(--font-mono)">${a.kenne_index.toFixed(3)}</td>
+                <td><span class="zone-badge ${zoneClass(a.zone)}">${a.zone}</span></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    function renderModelParams(signals) {
+      const el = document.getElementById('modelRows');
+      const rows = signals.filter(s => !s.error).map(s => `
+        <tr>
+          <td class="symbol">${s.symbol}</td>
+          <td style="font-family:var(--font-mono)">${s.slope.toFixed(4)}</td>
+          <td style="color:${s.r2 >= 0.65 ? 'var(--system-green)' : 'var(--system-red)'}">${s.r2.toFixed(4)}</td>
+          <td>${s.data_years}y</td>
+          <td style="font-size:11px;color:var(--text-secondary)">${s.date}</td>
+        </tr>`).join('');
+      el.innerHTML = rows || '<tr><td colspan="5" style="text-align:center">—</td></tr>';
+    }
+
+    // ─── EXECUTE ACTIONS
+    async function updateData() {
+      initLog('execLog');
+      appendLog('execLog', 'Fetching latest market data...', 'info');
+      try {
+        const res = await fetch('/api/update-data', { method: 'POST' });
+        const data = await res.json();
+        data.forEach(r => {
+          if (r.error) appendLog('execLog', `✗ ${r.symbol}: ${r.error}`, false);
+          else appendLog('execLog', `✓ ${r.symbol}: +${r.added} candles updated.`, true);
+        });
+      } catch (e) { appendLog('execLog', `✗ Network error: ${e.message}`, false); }
+    }
+
+    async function checkBalance() {
+      const grid = document.getElementById('balanceGrid');
+      initLog('execLog');
+      grid.style.display = 'none';
+      try {
+        const res = await fetch('/api/balance');
+        if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'API Error'); }
+        const data = await res.json();
+        if (!Object.keys(data).length) { appendLog('execLog', 'Account is empty or connection failed.', false); return; }
+        grid.style.display = 'grid';
+        grid.innerHTML = Object.entries(data).map(([c, b]) => `
+          <div style="background:var(--system-surface-2);padding:12px;border-radius:12px;border:0.5px solid var(--border)">
+            <div style="font-size:10px;color:var(--text-tertiary);font-weight:700">${c}</div>
+            <div style="font-family:var(--font-mono);font-size:15px;margin-top:4px">${b.free.toFixed(4)}</div>
+          </div>`).join('');
+        document.getElementById('statusDot').className = 'status-dot online';
+        document.getElementById('statusText').textContent = 'CONNECTED';
+      } catch (e) {
+        if (e.message.includes('50101')) {
+          appendLog('execLog', `✗ OKX 50101: API Key 与环境不匹配。实盘需关闭 Simulated，模拟盘需配套模拟 Key。`, false);
+        } else {
+          appendLog('execLog', `✗ Balance check failed: ${e.message}`, false);
+        }
+      }
+    }
+
+    async function runDca(dry) {
+      if (!dry && !confirm('Execute REAL trades? This will use actual funds in your exchange account.')) return;
+      const btn = dry ? event.target : document.getElementById('liveDcaBtn');
+      btn.disabled = true;
+      initLog('execLog');
+      appendLog('execLog', dry ? 'Starting DRY RUN simulation...' : 'Executing LIVE DCA...', 'info');
+      try {
+        const res = await fetch(`/api/run-dca?dry_run=${dry}`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+        if (!data.ok) { appendLog('execLog', `⚠ Notice: ${data.msg}`, 'info'); return; }
+        appendLog('execLog', `Success! Total Investment: $${data.total_usdt.toFixed(2)} USDT`, true);
+        data.orders.forEach(o => {
+          const ok = o.status === 'filled' || o.status === 'dry_run';
+          appendLog('execLog', `${ok ? '✓' : '✗'} ${o.symbol}: $${o.usdt.toFixed(2)} → ${o.status.toUpperCase()}`, ok);
+        });
+        loadHistory();
+      } catch (e) { appendLog('execLog', `✗ Execution failed: ${e.message}`, false); }
+      finally { btn.disabled = false; }
+    }
+
+    async function sendNotify() {
+      initLog('execLog');
+      appendLog('execLog', 'Calculating signals and sending email...', 'info');
+      try {
+        const res = await fetch('/api/notify', { method: 'POST' });
+        const data = await res.json();
+        appendLog('execLog', data.ok ? `✓ ${data.msg}` : `✗ ${data.msg}`, data.ok);
+      } catch (e) { appendLog('execLog', `✗ Email failed: ${e.message}`, false); }
+    }
+
+    // ─── HISTORY
+    async function loadPortfolio() {
+      try {
+        const res = await fetch('/api/portfolio');
+        const data = await res.json();
+        if (!data.ok) return;
+
+        document.getElementById('portfolioPanel').style.display = 'block';
+
+        const renderCards = (items) => items.map(c => `
+          <div style="background:var(--system-surface-2);padding:14px;border-radius:14px;border:0.5px solid var(--border)">
+            <div style="font-size:12px;color:var(--text-tertiary);font-weight:600;margin-bottom:6px">${c.symbol}</div>
+            <div style="font-family:var(--font-mono);font-size:16px;font-weight:600">${c.qty.toFixed(4)}</div>
+            <div style="font-size:11px;color:var(--system-gray);margin-top:2px">Value: $${c.val.toFixed(2)}</div>
+            ${c.symbol !== 'USDT' ? `<div style="font-size:11px;margin-top:4px;color:${c.pnl >= 0 ? 'var(--system-green)' : 'var(--system-red)'}">PnL: ${c.pnl >= 0 ? '+' : ''}$${c.pnl.toFixed(2)} (${c.pnl_pct.toFixed(1)}%)</div>` : ''}
+          </div>
+        `).join('') || '<div style="color:var(--text-tertiary);font-size:12px;padding:12px">暂无持仓 No holdings</div>';
+
+        document.getElementById('port-live-content').innerHTML = renderCards(data.live);
+        document.getElementById('port-dry-content').innerHTML = renderCards(data.dry_run);
+      } catch (e) {
+        console.error('Failed to load portfolio', e);
+        if (e.message && e.message.includes('50101')) {
+          document.getElementById('port-live-content').innerHTML = `
+             <div style="grid-column:1/-1; padding:20px; background:var(--system-red-light); color:var(--system-red); border-radius:12px; font-size:13px; border:0.5px solid var(--system-red)">
+               <strong>注意 (Warning)</strong>: OKX 50101 错误。您的 API Key 与当前模式不匹配。<br>
+               实盘交易请关闭 <b>Simulated</b> 开关；模拟盘请确保使用了模拟盘 API Key。
+             </div>`;
+        }
+      }
+    }
+
+    function switchPortMode(mode) {
+      document.getElementById('tab-port-live').style.color = mode === 'live' ? 'var(--text-primary)' : 'var(--text-tertiary)';
+      document.getElementById('tab-port-live').style.fontWeight = mode === 'live' ? '600' : '500';
+      document.getElementById('tab-port-dry').style.color = mode === 'dry' ? 'var(--text-primary)' : 'var(--text-tertiary)';
+      document.getElementById('tab-port-dry').style.fontWeight = mode === 'dry' ? '600' : '500';
+
+      document.getElementById('port-live-content').style.display = mode === 'live' ? 'grid' : 'none';
+      document.getElementById('port-dry-content').style.display = mode === 'dry' ? 'grid' : 'none';
+    }
+
+    async function loadHistory() {
+      loadPortfolio();
+      const month = document.getElementById('histMonth').value;
+      const filter = document.getElementById('histStatusFilter').value;
+      const url = '/api/history' + (month ? `?month=${month}` : '');
+      const res = await fetch(url);
+      const data = await res.json();
+      const tbody = document.getElementById('histBody');
+
+      let recs = data.records || [];
+      if (filter !== 'all') {
+        recs = recs.filter(r => r.status === filter);
+      }
+
+      const summary = document.getElementById('historySummary');
+      if (summary) summary.style.display = recs.length ? 'flex' : 'none';
+
+      const totalUSDT = recs.filter(r => ['filled', 'dry_run'].includes(r.status)).reduce((acc, r) => acc + r.usdt, 0);
+      document.getElementById('histCount').textContent = recs.length;
+      document.getElementById('histTotal').textContent = `$${totalUSDT.toFixed(2)}`;
+
+      if (!recs.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-tertiary)">暂无记录 · No records found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = recs.map(r => {
+        const isDry = r.status === 'dry_run';
+        const isLive = r.status === 'filled';
+        const tagColor = isLive ? 'var(--system-green)' : (isDry ? 'var(--system-gray)' : 'var(--system-red)');
+        const tagText = isLive ? 'LIVE' : (isDry ? 'DRY RUN' : r.status.toUpperCase());
+        const opacity = isDry ? '0.7' : '1';
+
+        return `<tr style="opacity: ${opacity}">
+          <td style="font-size:11px;color:var(--text-secondary)">${(r.ts || '').replace('T', ' ')}</td>
+          <td class="symbol">${r.symbol}</td>
+          <td style="font-size:11px;color:var(--system-gray);opacity:0.6">${r.exchange}</td>
+          <td style="color:var(--text-primary);font-weight:600">$${(r.usdt || 0).toFixed(2)}</td>
+          <td style="font-family:var(--font-mono)">${(r.kenne_index || 0).toFixed(3)}</td>
+          <td>${(r.mult || 0).toFixed(1)}x</td>
+          <td><span class="zone-badge" style="background:var(--system-surface-2);color:${tagColor};border:0.5px solid ${tagColor}">${tagText}</span></td>
+        </tr>`;
+      }).join('');
+    }
+
+    function clearMonth() {
+      document.getElementById('histMonth').value = '';
+      loadHistory();
+    }
+
+    async function initHistory() {
+      if (!confirm('确定要清空所有交易历史记录吗？此操作不可撤销。\nAre you sure you want to clear all trading history? This cannot be undone.')) return;
+      try {
+        const res = await fetch('/api/init-history', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          alert('初始化成功 / Reset Successful');
+          loadHistory();
+        } else {
+          alert('初始化失败: ' + data.msg);
+        }
+      } catch (e) {
+        alert('网络错误: ' + e.message);
+      }
+    }
+
+    // ─── LOG HELPERS
+    function initLog(id) {
+      const el = document.getElementById(id);
+      el.classList.add('visible');
+      el.innerHTML = '';
+      return el;
+    }
+    function appendLog(id, msg, ok) {
+      const el = document.getElementById(id);
+      const div = document.createElement('div');
+      div.style.color = ok === true ? 'var(--system-green)' : ok === false ? 'var(--system-red)' : 'var(--system-blue)';
+      div.textContent = msg;
+      el.appendChild(div);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // ─── START
+    init();
+  </script>
+</body>
+
+</html>
